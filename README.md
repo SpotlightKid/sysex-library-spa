@@ -48,7 +48,9 @@ Ideas for future enhancements include:
   logical operators.
 - Save search filter history.
 - Save and recall pre-defined search filters.
-- Search result pagination.
+- Add sorting controls.
+- Add pagination or lazy loading for very large collections / search results.
+- Show a hex preview of patch sysex data or extracted header fields.
 
 
 ## Authors
