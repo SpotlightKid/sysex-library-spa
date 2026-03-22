@@ -2,9 +2,10 @@
 // Sysex Librarian (client-only SPA) using IndexedDB
 
 import { openDB } from './idb.js';
+import { searchPatches } from './search.js';
 
 const DB_NAME = 'sysex-librarian';
-const DB_VERSION = 1;
+const DB_VERSION = 3;
 const STORE_NAME = 'patches';
 const MAX_BYTES = 16 * 1024; // 16 KiB
 
@@ -25,6 +26,27 @@ async function initDB() {
         store.createIndex('manufacturer', 'manufacturer', { unique: false });
         store.createIndex('device', 'device', { unique: false });
         store.createIndex('author', 'author', { unique: false });
+        store.createIndex('description', 'description', { unique: false });
+        // tags as multiEntry to index each tag element individually
+        store.createIndex('tags', 'tags', { unique: false, multiEntry: true });
+      } else {
+        // migration paths for existing DBs
+        const store = transaction.objectStore(STORE_NAME);
+        // add author index in earlier migration if missing
+        if (oldVersion < 2) {
+          if (!store.indexNames.contains('author')) {
+            store.createIndex('author', 'author', { unique: false });
+          }
+        }
+        // add description and tags indexes in this migration (v3)
+        if (oldVersion < 3) {
+          if (!store.indexNames.contains('description')) {
+            store.createIndex('description', 'description', { unique: false });
+          }
+          if (!store.indexNames.contains('tags')) {
+            store.createIndex('tags', 'tags', { unique: false, multiEntry: true });
+          }
+        }
       }
     }
   });
@@ -350,19 +372,17 @@ function createPatchCard(patch) {
 
 /* Returns the list of patches filtered by filterText (if provided) */
 async function getFilteredPatches(filterText = '') {
-  const patches = await getAllPatches();
-  if (!filterText || filterText.trim().length === 0) return patches;
-  const q = filterText.trim().toLowerCase();
-  return patches.filter(p => {
-    if ((p.name || '').toLowerCase().includes(q)) return true;
-    if ((p.manufacturer || '').toLowerCase().includes(q)) return true;
-    if ((p.device || '').toLowerCase().includes(q)) return true;
-    if ((p.author || '').toLowerCase().includes(q)) return true;
-    if (Array.isArray(p.tags)) {
-      if (p.tags.some(t => t.toLowerCase().includes(q))) return true;
-    }
-    return false;
-  });
+  // Use the search module which accepts dbPromise, store name, query and mapping
+  // The module iterates using a cursor and returns matching patches
+  const fieldMap = {
+    name: 'name',
+    manufacturer: 'manufacturer',
+    device: 'device',
+    author: 'author',
+    description: 'description',
+    tags: 'tags'
+  };
+  return await searchPatches(dbPromise, STORE_NAME, filterText, fieldMap);
 }
 
 async function renderPatches(filterText = '') {
@@ -810,13 +830,21 @@ async function handlePatchImageClick(patch) {
 /* Initialization and main */
 function setupFilter() {
   const input = document.getElementById('filterInput');
+  const form = document.getElementById('filterForm');
+
   if (!input) return;
   let timeout = null;
+
   input.addEventListener('input', (ev) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => {
       renderPatches(input.value);
     }, 200);
+  });
+
+  form.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
   });
 
   const clear = document.getElementById('filterClear');

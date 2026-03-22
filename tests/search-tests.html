@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Search module tests</title>
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; padding: 1rem; }
+    .ok { color: green; }
+    .fail { color: red; }
+    pre { background: #f3f3f3; padding: .5rem; }
+  </style>
+</head>
+<body>
+  <h1>Search module tests</h1>
+  <div id="results"></div>
+
+  <script type="module">
+    import { parseSearch, matchPatch } from '../assets/js/search.js';
+
+    const resultsEl = document.getElementById('results');
+    let passed = 0, failed = 0;
+
+    function assert(cond, msg) {
+      const p = document.createElement('div');
+      if (cond) {
+        p.innerHTML = `<span class="ok">OK</span> ${msg}`;
+        passed++;
+      } else {
+        p.innerHTML = `<span class="fail">FAIL</span> ${msg}`;
+        failed++;
+      }
+      resultsEl.appendChild(p);
+    }
+
+    // Helper to compare parsed clauses to expected string representation
+    function clausesToText(clauses) {
+      return clauses.map(cl => cl.map(t => `${t.negated ? '!' : ''}${t.field}:${t.value}`).join(' && ')).join(' OR ');
+    }
+
+    // Tests for tokenization / parsing
+    try {
+      let q, clauses;
+      q = `pad brass`;
+      clauses = parseSearch(q);
+      assert(clausesToText(clauses) === 'any:pad OR any:brass', `parse "${q}" => ${clausesToText(clauses)}`);
+
+      q = `n:pad`;
+      clauses = parseSearch(q);
+      assert(clausesToText(clauses) === 'name:pad', `parse "${q}" => ${clausesToText(clauses)}`);
+
+      // Quoted terms: prefix inside quotes should still be recognized
+      q = `"n:soft pad"`;
+      clauses = parseSearch(q);
+      assert(clausesToText(clauses) === 'name:soft pad', `quoted with prefix inside => ${clausesToText(clauses)}`);
+
+      q = `n:"soft pad"`;
+      clauses = parseSearch(q);
+      assert(clausesToText(clauses) === 'name:soft pad', `quoted value after prefix => ${clausesToText(clauses)}`);
+
+      q = `pad && brass`;
+      clauses = parseSearch(q);
+      assert(clausesToText(clauses) === 'any:pad && any:brass', `AND: ${clausesToText(clauses)}`);
+
+      q = `n:pad && t:lead synth`;
+      clauses = parseSearch(q);
+      assert(clausesToText(clauses) === 'name:pad && tags:lead OR any:synth', `mixed AND/OR: ${clausesToText(clauses)}`);
+
+      // NOT operator tests
+      q = `!pad`;
+      clauses = parseSearch(q);
+      assert(clausesToText(clauses) === '!any:pad', `NOT simple: ${clausesToText(clauses)}`);
+
+      q = `! pad`;
+      clauses = parseSearch(q);
+      assert(clausesToText(clauses) === '!any:pad', `NOT separated by space: ${clausesToText(clauses)}`);
+
+      q = `! n:pad`;
+      clauses = parseSearch(q);
+      assert(clausesToText(clauses) === '!name:pad', `NOT with prefix: ${clausesToText(clauses)}`);
+
+      q = `!n:pad`;
+      clauses = parseSearch(q);
+      assert(clausesToText(clauses) === '!name:pad', `NOT with prefix (no white space): ${clausesToText(clauses)}`);
+
+      q = `n:!pad`;
+      clauses = parseSearch(q);
+      assert(clausesToText(clauses) === 'name:!pad', `! after prefix interpreted as literal: ${clausesToText(clauses)}`);
+
+      q = `\\!pad`;
+      clauses = parseSearch(q);
+      assert(clausesToText(clauses) === 'any:!pad', `escaped ! at start becomes literal: ${clausesToText(clauses)}`);
+
+      q = `!\\!pad`;
+      clauses = parseSearch(q);
+      assert(clausesToText(clauses) === '!!pad' || clausesToText(clauses) === '!any:!pad', `double handling of ! and escaped ! => ${clausesToText(clauses)}`);
+
+      // Matching tests
+      const samplePatch = {
+        name: 'Soft Pad 1',
+        manufacturer: 'Acme',
+        device: 'SuperSynth',
+        author: 'Alice',
+        description: 'A warm soft pad',
+        tags: ['pad', 'warm']
+      };
+
+      // positive match
+      q = `pad`;
+      clauses = parseSearch(q);
+      assert(matchPatch(samplePatch, clauses, {
+        name:'name', manufacturer:'manufacturer', device:'device',
+        author:'author', description:'description', tags:'tags'
+      }) === true, `sample matches "pad"`);
+
+      // negative match: !pad should exclude it
+      q = `!pad`;
+      clauses = parseSearch(q);
+      assert(matchPatch(samplePatch, clauses, {
+        name:'name', manufacturer:'manufacturer', device:'device',
+        author:'author', description:'description', tags:'tags'
+      }) === false, `sample excluded by "!pad"`);
+
+      // combined clause: must include 'soft' and not 'bright'
+      q = `soft && !bright`;
+      clauses = parseSearch(q);
+      assert(matchPatch(samplePatch, clauses, {
+        name:'name', manufacturer:'manufacturer', device:'device',
+        author:'author', description:'description', tags:'tags'
+      }) === true, `sample matches "soft && !bright"`);
+
+      // AND where negation fails
+      q = `soft && !pad`;
+      clauses = parseSearch(q);
+      assert(matchPatch(samplePatch, clauses, {
+        name:'name', manufacturer:'manufacturer', device:'device',
+        author:'author', description:'description', tags:'tags'
+      }) === false, `sample fails "soft && !pad" because it has pad`);
+
+      // OR with positive clause
+      q = `n:brass pad`;
+      clauses = parseSearch(q);
+      assert(matchPatch(samplePatch, clauses, {
+        name:'name', manufacturer:'manufacturer', device:'device',
+        author:'author', description:'description', tags:'tags'
+      }) === true, `OR: "n:brass pad" matches because pad`);
+
+      // ensure escaped ! inside token is preserved
+      q = `\\!pad`;
+      clauses = parseSearch(q);
+      assert(matchPatch({ name: '!pad' }, clauses, {
+        name:'name', manufacturer:'manufacturer', device:'device',
+        author:'author', description:'description', tags:'tags'
+      }) === true, `escaped ! matches literal '!pad'`);
+
+    } catch (err) {
+      const pre = document.createElement('pre');
+      pre.textContent = 'Test harness error: ' + err.stack;
+      resultsEl.appendChild(pre);
+    } finally {
+      const summary = document.createElement('h2');
+      summary.textContent = `Passed: ${passed}, Failed: ${failed}`;
+      resultsEl.appendChild(summary);
+      console.log('Tests finished. Passed:', passed, 'Failed:', failed);
+    }
+  </script>
+</body>
+</html>
