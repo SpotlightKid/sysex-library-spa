@@ -1,0 +1,133 @@
+:root {
+  --gap: 1rem;
+  --card-min-width: 220px;
+}
+
+/* Mobile-first */
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  background: #f7f7f7;
+  margin: 0;
+  color: #222;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Layout spacing */
+main.uk-section { 
+  padding-top: 1rem; 
+  padding-bottom: 2rem; 
+}
+
+/* Ensure the upload form never exceeds viewport width on portrait phones */
+#uploadForm {
+  width: 100%;
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0.75rem;
+}
+
+/* Grid of patch cards using CSS Grid */
+/* Default: 1 column (smartphone portrait) */
+.patch-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--gap);
+  align-items: start;
+  margin-top: 0.75rem;
+}
+
+/* Two columns on typical phone landscape and tablet portrait */
+@media (min-width: 480px) {
+  .patch-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Three columns on typical tablet landscape */
+@media (min-width: 900px) {
+  .patch-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Larger screens: up to 5 columns */
+@media (min-width: 1200px) {
+  .patch-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+/* Card styling applied to the root card element (template root will receive this class in JS) */
+.uk-card.patch-card {
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Card header/title */
+.uk-card.patch-card .uk-card-header { 
+  padding: 0.75rem; 
+}
+.uk-card.patch-card .uk-card-body { 
+  padding: 0.75rem; 
+}
+.uk-card.patch-card .uk-card-footer { 
+  padding: 0.5rem 0.75rem; 
+}
+
+/* Title */
+.uk-card.patch-card h3 {
+  margin: 0 0 0.2rem 0;
+  font-size: 1.05rem;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+/* small meta text */
+.patch-meta {
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 0.2rem;
+}
+
+/* tag styling */
+.patch-tags .uk-label {
+  margin-right: 6px;
+  margin-top: 6px; 
+  display: inline-block;
+}
+
+.patch-device {
+  color: #fff;
+  background-color: #666;
+}
+
+.patch-manufacturer {
+  color: #222;
+  background-color: #eee;
+}
+
+/* ensure long text wraps nicely */
+.uk-card.patch-card .uk-text-truncate {
+  display: block;
+  white-space: normal;
+  overflow: visible;
+}
+
+/* Responsive adjustments */
+@media (min-width: 680px) {
+  main.uk-section {
+    padding-top: 1.5rem;
+  }
+}
+
+@media (min-width: 980px) {
+  :root {
+    --card-min-width: 260px;
+  }
+}

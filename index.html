@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SysEx Library</title>
+
+  <!-- UIkit CSS (v3)  -->
+  <link rel="stylesheet" href="assets/css/uikit.min.css" />
+
+  <!-- App CSS -->
+  <link rel="stylesheet" href="assets/css/styles.css" />
+
+  <!-- UIkit JS (deferred so it doesn't block parsing) -->
+  <script defer src="assets/js/uikit.min.js"></script>
+  <script defer src="assets/js/uikit-icons.min.js"></script>
+
+  <!-- Main app code (module, deferred) -->
+  <script type="module" src="./assets/js/app.js"></script>
+</head>
+<body>
+  <nav></nav>
+
+  <main class="uk-section uk-section-small uk-flex uk-flex-column">
+    <div class="uk-container">
+
+      <h1 class="uk-heading-line uk-text-center"><span>SysEx Library</span></h1>
+
+      <!-- Accordion: MIDI settings (top), Library management, Add patches -->
+      <ul class="uk-accordion-default" uk-accordion="multiple: true">
+        <li>
+          <a class="uk-accordion-title" href="#" aria-expanded="false">MIDI settings <span uk-accordion-icon></span></a>
+          <div class="uk-accordion-content">
+            <div class="uk-margin-small">
+              <label class="uk-form-label" for="midiOutputSelect">MIDI Output</label>
+              <div class="uk-form-controls">
+                <select id="midiOutputSelect" class="uk-select">
+                  <option value="">(no device selected)</option>
+                </select>
+              </div>
+            </div>
+            <div class="uk-margin-small">
+              <label class="uk-form-label">
+                <input id="midiConfirmCheckbox" class="uk-checkbox" type="checkbox" />
+                <span class="uk-margin-left">Confirm sending patch via MIDI?</span>
+              </label>
+            </div>
+            <div class="uk-text-meta">Use the "Send SysEx patch" button in the upper left of a 
+              patch card to send its SysEx data to the selected MIDI output.</div>
+          </div>
+        </li>
+
+        <li>
+          <a class="uk-accordion-title" uk-tooltip="Export, import or clear the patch library" 
+            href="#">Library management <span uk-accordion-icon></span></a>
+          <div class="uk-accordion-content">
+            <button id="exportPatches" class="uk-button uk-button-primary uk-margin-small-bottom"
+              ><span uk-icon="download"></span> Export Patches</button>
+
+            <button id="importPatches" class="uk-button uk-button-primary uk-margin-small-bottom"
+              ><span uk-icon="upload"></span> Import Patches</button>
+
+            <button id="clearPatches" class="uk-button uk-button-danger uk-margin-small-bottom" 
+              disabled><span uk-icon="trash"></span> Clear All Patches</button>
+
+            <!-- hidden file input for import -->
+            <input id="importFileInput" type="file" accept="application/json" style="display:none" />
+          </div>
+        </li>
+
+        <li>
+          <a class="uk-accordion-title" href="#" aria-expanded="true">Add patches <span uk-accordion-icon></span></a>
+          <div class="uk-accordion-content">
+            <!-- Upload form (no uk-margin-medium-top class on form element) -->
+            <form id="uploadForm" class="uk-form-stacked uk-card uk-card-default uk-card-body" novalidate>
+              <fieldset id="uploadFields" class="uk-fieldset">
+                <div class="uk-width-1-1">
+                  <label class="uk-form-label" for="patchName">Patch name</label>
+                  <input id="patchName" name="patchName" class="uk-input" type="text" 
+                    placeholder="Optional — leave blank to use filename(s)" maxlength="25" />
+                </div>
+
+                <div class="uk-width-1-1">
+                  <label class="uk-form-label" for="author">Author</label>
+                  <input id="author" name="author" class="uk-input" type="text" 
+                    placeholder="Optional" maxlength="25" />
+                </div>
+
+                <div class="uk-width-1-1">
+                  <label class="uk-form-label" for="manufacturer">Manufacturer</label>
+                  <input id="manufacturer" name="manufacturer" class="uk-input" type="text" 
+                    placeholder="Optional" maxlength="25" />
+                </div>
+
+                <div class="uk-width-1-1">
+                  <label class="uk-form-label" for="device">Device</label>
+                  <input id="device" name="device" class="uk-input" type="text" 
+                    placeholder="Required" required maxlength="25" />
+                </div>
+
+                <div class="uk-width-1-1">
+                  <label class="uk-form-label" for="description">Description</label>
+                  <textarea id="description" name="description" class="uk-textarea" rows="2" 
+                    placeholder="Optional" maxlength="1000"></textarea>
+                </div>
+
+                <div class="uk-width-1-1">
+                  <label class="uk-form-label" for="tags">Tags (comma-separated)</label>
+                  <input id="tags" name="tags" class="uk-input" type="text" 
+                    placeholder="e.g. bass, lead, arpeggio" />
+                </div>
+
+                <div class="uk-width-1-1">
+                  <label class="uk-form-label" for="files">Sysex file(s)</label>
+                  <div uk-form-custom>
+                    <input id="files" name="files" type="file" aria-label="Custom controls" 
+                      accept=".syx" multiple required />
+                    <button class="uk-button uk-button-default" type="button" tabindex="-1"
+                      >Select...</button>
+                  </div>
+                </div>
+              </fieldset>
+
+              <hr>
+
+              <div class="uk-width-1-1">
+                <button id="submitBtn" class="uk-button uk-button-primary" type="submit">Upload</button>
+                <span id="uploadNote" class="uk-text-meta uk-text-muted">Max. size per file: 16 KiB</span>
+              </div>
+            </form>
+          </div>
+        </li>
+      </ul>
+
+      <!-- Filter / search -->
+      <search class="uk-margin-medium-top">
+        <form class="uk-form-horizontal">
+          <div class="uk-inline uk-width-1-1">
+            <span class="uk-form-icon" href="#" uk-icon="search"></span>
+            <input id="filterInput" class="uk-input" type="search" aria-label="Filter patches"
+              uk-tooltip="Filter by name, manufacturer, device, author or tags"
+              placeholder="Type to filter patches..." />
+            <a id="filterClear" class="uk-form-icon uk-form-icon-flip" href="#" uk-icon="close"></a>
+          </div>
+        </form>
+      </search>
+
+      <!-- Patch grid -->
+      <section id="patchList" class="uk-margin-large-top">
+        <div id="patchGrid" class="patch-grid" aria-live="polite"></div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer></footer>
+
+  <!-- Card template -->
+  <template id="patch-card-template">
+    <div class="uk-card uk-card-small uk-card-default uk-card-hover uk-width-1-1@m">
+      <div class="uk-card-header">
+        <div class="uk-grid-small uk-flex-middle" uk-grid>
+          <div class="uk-width-auto">
+            <a href="#" class="patch-image uk-icon-button" uk-icon="icon: push; ratio: 1.5" 
+              uk-tooltip="Send SysEx patch" aria-label="Send SysEx patch"></a>
+          </div>
+          <div class="uk-width-expand patch-mtime" uk-tooltip="">
+            <h3 class="uk-card-title uk-margin-remove-bottom uk-text-right patch-name"></h3>
+            <p class="uk-text-meta uk-margin-remove-top uk-text-right patch-author"></p>
+          </div>
+        </div>
+      </div>
+      <div class="uk-card-body">
+        <p class="patch-description"></p>
+        <p class="uk-margin-remove-bottom">
+          <span class="patch-device uk-label uk-background-secondary uk-light"></span>
+          <span class="patch-manufacturer uk-label uk-background-muted uk-text-secondary"></span>
+        </p>
+        <p class="patch-tags uk-margin-remove-top">
+        </p>
+      </div>
+      <div class="uk-card-footer">
+        <ul class="uk-iconnav">
+          <li><a href="#" class="patch-download-syx uk-icon-button" uk-icon="download" 
+            uk-tooltip="Download SysEx data" aria-label="Download SysEx data"></a></li>
+          <li><a href="#" class="patch-download-json uk-icon-button" uk-icon="code" 
+            uk-tooltip="Download JSON data" aria-label="Download JSON data"></a></li>
+          <li><a href="#" class="patch-edit uk-icon-button" uk-icon="file-edit" 
+            uk-tooltip="Edit patch information" aria-label="Edit patch information"></a></li>
+          <li><a href="#" class="patch-delete uk-icon-button" uk-icon="trash" 
+            uk-tooltip="Delete patch" aria-label="Delete patch"></a></li>
+      </div>
+    </div>
+  </template>
+
+  <!-- Export choice modal - asks whether to export all or filtered -->
+  <div id="export-choice-modal" uk-modal>
+    <div class="uk-modal-dialog uk-modal-body">
+      <button class="uk-modal-close-default" type="button" uk-close></button>
+      <h2 class="uk-modal-title">Export patches</h2>
+      <p id="export-choice-desc">Do you want to export all patches or only the patches matching the 
+        current filter?</p>
+      <div class="uk-text-right uk-margin-top">
+        <button id="exportAllBtn" class="uk-button uk-button-default">Export All</button>
+        <button id="exportFilteredBtn" class="uk-button uk-button-primary">Export Filtered</button>
+        <button class="uk-button uk-button-default uk-modal-close">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import choice modal - asks overwrite or only-if-newer -->
+  <div id="import-choice-modal" uk-modal>
+    <div class="uk-modal-dialog uk-modal-body">
+      <button class="uk-modal-close-default" type="button" uk-close></button>
+      <h2 class="uk-modal-title">Import patches</h2>
+      <p id="import-choice-desc">Choose whether to overwrite existing patches or import only when 
+        imported patch is newer.</p>
+      <div class="uk-text-right uk-margin-top">
+        <button id="importOverwriteBtn" class="uk-button uk-button-primary">Overwrite Existing</button>
+        <button id="importNewerBtn" class="uk-button uk-button-default">Only If Newer</button>
+        <button class="uk-button uk-button-default uk-modal-close">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Clear confirmation modal -->
+  <div id="clear-confirm-modal" uk-modal>
+    <div class="uk-modal-dialog uk-modal-body">
+      <button class="uk-modal-close-default" type="button" uk-close></button>
+      <h2 class="uk-modal-title">Clear all patches</h2>
+      <p>Are you sure you want to permanently delete all patches from the database? This action 
+        cannot be undone.</p>
+      <div class="uk-text-right uk-margin-top">
+        <button id="confirmClearBtn" class="uk-button uk-button-danger">Clear All</button>
+        <button class="uk-button uk-button-default uk-modal-close">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit modal -->
+  <div id="edit-modal" uk-modal>
+    <div class="uk-modal-dialog uk-modal-body">
+      <button class="uk-modal-close-default" type="button" uk-close></button>
+      <h2 class="uk-modal-title">Edit Patch</h2>
+
+      <form id="editForm" class="uk-form-stacked" novalidate>
+        <div class="uk-margin">
+          <label class="uk-form-label" for="editName">Patch name</label>
+          <div class="uk-form-controls">
+            <input id="editName" class="uk-input" type="text" maxlength="25" required />
+          </div>
+        </div>
+
+        <div class="uk-margin">
+          <label class="uk-form-label" for="editAuthor">Author</label>
+          <div class="uk-form-controls">
+            <input id="editAuthor" class="uk-input" type="text" maxlength="25" />
+          </div>
+        </div>
+
+        <div class="uk-margin">
+          <label class="uk-form-label" for="editManufacturer">Manufacturer</label>
+          <div class="uk-form-controls">
+            <input id="editManufacturer" class="uk-input" type="text" maxlength="25" />
+          </div>
+        </div>
+
+        <div class="uk-margin">
+          <label class="uk-form-label" for="editDevice">Device</label>
+          <div class="uk-form-controls">
+            <input id="editDevice" class="uk-input" type="text" maxlength="25" required />
+          </div>
+        </div>
+
+        <div class="uk-margin">
+          <label class="uk-form-label" for="editDescription">Description</label>
+          <div class="uk-form-controls">
+            <textarea id="editDescription" class="uk-textarea" rows="3" maxlength="1000"></textarea>
+          </div>
+        </div>
+
+        <div class="uk-margin">
+          <label class="uk-form-label" for="editTags">Tags (comma-separated)</label>
+          <div class="uk-form-controls">
+            <input id="editTags" class="uk-input" type="text" />
+          </div>
+        </div>
+
+        <div class="uk-text-right">
+          <button class="uk-button uk-button-default uk-modal-close" type="button">Cancel</button>
+          <button id="editSaveBtn" class="uk-button uk-button-primary" type="submit">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
