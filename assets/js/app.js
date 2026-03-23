@@ -590,6 +590,8 @@ async function handleImportFileSelected(ev) {
       patches = parsed;
     } else if (parsed && Array.isArray(parsed.patches)) {
       patches = parsed.patches;
+    } else if (parsed && parsed.name && parsed.data) {
+      patches = [parsed];
     } else {
       notification('danger', 'Invalid import file format');
       return;
