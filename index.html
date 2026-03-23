@@ -35,7 +35,8 @@
       <!-- Accordion: MIDI settings (top), Library management, Add patches -->
       <ul class="uk-accordion-default" uk-accordion="multiple: true">
         <li>
-          <a class="uk-accordion-title" href="#" aria-expanded="false">MIDI settings <span uk-accordion-icon></span></a>
+          <a class="uk-accordion-title" href="#" aria-expanded="false"
+            >MIDI settings <span uk-tooltip="Select MIDI output device" uk-accordion-icon></span></a>
           <div class="uk-accordion-content">
             <div class="uk-margin-small">
               <label class="uk-form-label" for="midiOutputSelect">MIDI Output</label>
@@ -57,8 +58,9 @@
         </li>
 
         <li>
-          <a class="uk-accordion-title" uk-tooltip="Export, import or clear the patch library"
-            href="#">Library management <span uk-accordion-icon></span></a>
+          <a class="uk-accordion-title" href="#" aria-expanded="false"
+            >Library management <span uk-tooltip="Export, import or clear the patch library"
+            uk-accordion-icon></span></a>
           <div class="uk-accordion-content">
             <button id="exportPatches" class="uk-button uk-button-primary uk-margin-small-bottom"
               ><span uk-icon="download"></span> Export Patches</button>
@@ -75,7 +77,8 @@
         </li>
 
         <li>
-          <a class="uk-accordion-title" href="#" aria-expanded="true">Add patches <span uk-accordion-icon></span></a>
+          <a class="uk-accordion-title" href="#" aria-expanded="false"
+            >Add patches <span uk-tooltip="Upload SysEx file(s)" uk-accordion-icon></span></a>
           <div class="uk-accordion-content">
             <!-- Upload form (no uk-margin-medium-top class on form element) -->
             <form id="uploadForm" class="uk-form-stacked uk-card uk-card-default uk-card-body" novalidate>
@@ -144,9 +147,10 @@
           <div class="uk-inline uk-width-1-1">
             <span class="uk-form-icon" uk-icon="search"></span>
             <input id="filterInput" class="uk-input" type="search" aria-label="Filter patches"
-              uk-tooltip="Filter by name, manufacturer, device, author or tags"
+              uk-tooltip="Filter by name, manufacturer, device, author, description or tags"
               placeholder="Type to filter patches..." />
-            <a id="filterClear" class="uk-form-icon uk-form-icon-flip" href="#" uk-icon="close"></a>
+            <a id="filterClear" class="uk-form-icon uk-form-icon-flip" href="#" uk-icon="close"
+              aria-label="Clear filter" uk-tooltip="Clear filter"></a>
           </div>
         </form>
       </search>
