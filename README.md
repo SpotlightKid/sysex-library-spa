@@ -41,16 +41,17 @@ usable and useful but not all planned features have ben implemented yet.
 
 Ideas for future enhancements include:
 
-- Turn into a proper PWA, which can run fully off-line after the first load.
-- Extract meta-data from filename and SysEx data on import.
-- Duplicate patch detection.
-- Search explicitly by name, author, manufacturer, device and tag value, with exact matches and 
-  logical operators.
-- Save search filter history.
-- Save and recall pre-defined search filters.
-- Add sorting controls.
-- Add pagination or lazy loading for very large collections / search results.
-- Show a hex preview of patch sysex data or extracted header fields.
+- Turn into a proper PWA, which can run fully off-line after the first load. - **done**
+- Search explicitly by name, author, manufacturer, device and tag value, ~with exact matches~ and 
+  logical operators. - **done**
+
+* Extract meta-data from filename and SysEx data on import.
+* Duplicate patch detection.
+* Save search filter history.
+* Save and recall pre-defined search filters.
+* Add sorting controls.
+* Add pagination or lazy loading for very large collections / search results.
+* Show a hex preview of patch sysex data or extracted header fields.
 
 
 ## Authors
