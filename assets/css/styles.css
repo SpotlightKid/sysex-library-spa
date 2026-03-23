@@ -14,9 +14,9 @@ body {
 }
 
 /* Layout spacing */
-main.uk-section { 
-  padding-top: 1rem; 
-  padding-bottom: 2rem; 
+main.uk-section {
+  padding-top: 1rem;
+  padding-bottom: 2rem;
 }
 
 /* Ensure the upload form never exceeds viewport width on portrait phones */
@@ -70,14 +70,14 @@ main.uk-section {
 }
 
 /* Card header/title */
-.uk-card.patch-card .uk-card-header { 
-  padding: 0.75rem; 
+.uk-card.patch-card .uk-card-header {
+  padding: 0.75rem;
 }
-.uk-card.patch-card .uk-card-body { 
-  padding: 0.75rem; 
+.uk-card.patch-card .uk-card-body {
+  padding: 0.75rem;
 }
-.uk-card.patch-card .uk-card-footer { 
-  padding: 0.5rem 0.75rem; 
+.uk-card.patch-card .uk-card-footer {
+  padding: 0.5rem 0.75rem;
 }
 
 /* Title */
@@ -98,18 +98,25 @@ main.uk-section {
 /* tag styling */
 .patch-tags .uk-label {
   margin-right: 6px;
-  margin-top: 6px; 
+  margin-top: 6px;
   display: inline-block;
+  cursor: pointer;
 }
 
 .patch-device {
   color: #fff;
   background-color: #666;
+  cursor: pointer;
 }
 
 .patch-manufacturer {
   color: #222;
   background-color: #eee;
+  cursor: pointer;
+}
+
+.patch-author {
+  cursor: pointer;
 }
 
 /* ensure long text wraps nicely */

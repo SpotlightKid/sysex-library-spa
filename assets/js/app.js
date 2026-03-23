@@ -240,13 +240,110 @@ function escapeHtml(str) {
   });
 }
 
+function handleTagClicked(ev) {
+  const filterInput = document.getElementById('filterInput');
+  const cl = ev.target.classList;
+  let prefix = "";
+
+  if (cl.contains('patch-device')) {
+    prefix = "d:";
+  }
+  else if (cl.contains('patch-manufacturer')) {
+    prefix = "m:";
+  }
+  else if (cl.contains('patch-tag')) {
+    prefix = "t:";
+  }
+  else if (cl.contains('patch-author')) {
+    prefix = "a:";
+  }
+
+  if (filterInput) {
+    filterInput.value = `${prefix}"${ev.target.textContent}"`;
+    setTimeout(() => {
+      renderPatches(filterInput.value);
+    }, 50);
+  }
+}
+
+async function handleExportPatchSysEx(ev) {
+  ev.preventDefault();
+  let card = ev.target.closest('.patch-card');
+
+  if (!card)
+    return;
+
+  if (card.dataset.patchName) {
+    const db = await dbPromise;
+    const patch = await db.get(STORE_NAME, card.dataset.patchName);
+
+    const arr = base64ToUint8Array(patch.data);
+    sendBlob(sanitizeFilename(patch.name) + '.syx', arr, 'application/octet-stream');
+  }
+}
+
+async function handleExportPatchJson(ev) {
+  ev.preventDefault();
+  let card = ev.target.closest('.patch-card');
+
+  if (!card)
+    return;
+
+  if (card.dataset.patchName) {
+    const db = await dbPromise;
+    const patch = await db.get(STORE_NAME, card.dataset.patchName);
+
+    const json = JSON.stringify(patch, null, 2);
+    sendBlob(sanitizeFilename(patch.name) + '.json', json, 'application/json');
+  }
+}
+
+async function handleEditPatch(ev) {
+  ev.preventDefault();
+  let card = ev.target.closest('.patch-card');
+
+  if (!card)
+    return;
+
+  if (card.dataset.patchName) {
+    const db = await dbPromise;
+    const patch = await db.get(STORE_NAME, card.dataset.patchName);
+    // open edit modal and populate with patch data
+    openEditModal(patch);
+  }
+}
+
+async function handleDeletePatch(ev) {
+  ev.preventDefault();
+  let card = ev.target.closest('.patch-card');
+
+  if (!card)
+    return;
+
+  const name = card.dataset.patchName;
+
+  if (name) {
+    UIkit.modal.confirm(`Delete patch "${name}"?`).then(
+      async () => {
+        await deletePatch(name);
+        notification('success', `Deleted patch "${name}"`);
+        await renderPatches();
+        await updateDbButtonsState();
+      },
+      (err) => {}
+    );
+  }
+}
+
 function fillTagsContainer(container, tags) {
   container.innerHTML = '';
   if (!tags || !Array.isArray(tags) || tags.length === 0) return;
   tags.forEach(tag => {
     const span = document.createElement('span');
-    span.className = 'uk-label';
+    span.classList.add('patch-tag');
+    span.classList.add('uk-label');
     span.textContent = tag;
+    span.addEventListener('click', handleTagClicked);
     container.appendChild(span);
   });
 }
@@ -263,10 +360,13 @@ function createPatchCard(patch) {
   const fragment = document.importNode(tmpl.content, true);
   // the root card element inside template
   const cardEl = fragment.querySelector('.uk-card');
-  if (!cardEl) return null;
+
+  if (!cardEl)
+    return null;
 
   // add patch-card styling class
   cardEl.classList.add('patch-card');
+  cardEl.dataset.patchName = patch.name;
 
   // fill fields
   const elName = cardEl.querySelector('.patch-name');
@@ -276,10 +376,9 @@ function createPatchCard(patch) {
   const elDescription = cardEl.querySelector('.patch-description');
   const elTags = cardEl.querySelector('.patch-tags');
   const elMtime = cardEl.querySelector('.patch-mtime');
-  const elImage = cardEl.querySelector('.patch-image');
 
   if (elName) elName.textContent = patch.name || '';
-  if (elAuthor) elAuthor.textContent = patch.author ? `by ${patch.author}` : '';
+  if (elAuthor) elAuthor.textContent = patch.author || '';
   if (elManufacturer) elManufacturer.textContent = patch.manufacturer || '-';
   if (elDevice) elDevice.textContent = patch.device || '-';
   if (elDescription) elDescription.textContent = patch.description || '';
@@ -297,75 +396,15 @@ function createPatchCard(patch) {
     // ignore tooltip issues
   }
 
-  if (elImage) {
-    // attach click handler to send patch via MIDI
-    elImage.addEventListener('click', async (ev) => {
-      ev.preventDefault();
-      await handlePatchImageClick(patch);
-    });
-  }
-
-  // Attach event listeners to buttons
-  const dlSyx = cardEl.querySelector('.patch-download-syx');
-  const dlJson = cardEl.querySelector('.patch-download-json');
-  const editBtn = cardEl.querySelector('.patch-edit');
-  const delBtn = cardEl.querySelector('.patch-delete');
-
-  if (dlSyx) {
-    dlSyx.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      const arr = base64ToUint8Array(patch.data);
-      const blob = new Blob([arr], { type: 'application/octet-stream' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const outName = sanitizeFilename(patch.name) + '.syx';
-      a.download = outName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    });
-  }
-
-  if (dlJson) {
-    dlJson.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      const json = JSON.stringify(patch, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const outName = sanitizeFilename(patch.name) + '.json';
-      a.download = outName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    });
-  }
-
-  if (editBtn) {
-    editBtn.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      // open edit modal and populate with patch data
-      openEditModal(patch);
-    });
-  }
-
-  if (delBtn) {
-    delBtn.addEventListener('click', async (ev) => {
-      ev.preventDefault();
-      UIkit.modal.confirm(`Delete patch "${patch.name}"?`).then( async () => {
-        await deletePatch(patch.name);
-        notification('success', `Deleted ${patch.name}`);
-        await renderPatches();
-        await updateDbButtonsState();
-      },
-      () => {
-      });
-    });
-  }
+  // Attach event listeners to image and buttons
+  cardEl.querySelector('.patch-image')?.addEventListener('click', handleSendPatch);
+  cardEl.querySelector('.patch-download-syx')?.addEventListener('click', handleExportPatchSysEx);
+  cardEl.querySelector('.patch-download-json')?.addEventListener('click', handleExportPatchJson);
+  cardEl.querySelector('.patch-edit')?.addEventListener('click', handleEditPatch);
+  cardEl.querySelector('.patch-delete')?.addEventListener('click', handleDeletePatch);
+  cardEl.querySelector('.patch-device')?.addEventListener('click', handleTagClicked);
+  cardEl.querySelector('.patch-manufacturer')?.addEventListener('click', handleTagClicked);
+  elAuthor?.addEventListener('click', handleTagClicked);
 
   return cardEl;
 }
@@ -480,8 +519,8 @@ function serializePatches(patches) {
   }));
 }
 
-function downloadJson(filename, content) {
-  const blob = new Blob([content], { type: 'application/json' });
+function sendBlob(filename, content, content_type) {
+  const blob = new Blob([content], { type: content_type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -506,7 +545,7 @@ async function doExportPatches(filteredOnly = false) {
     patches: serializePatches(patches)
   };
   const filename = `patches-${new Date().toISOString().slice(0,19).replace(/[:T]/g, '-')}.json`;
-  downloadJson(filename, JSON.stringify(payload, null, 2));
+  sendBlob(filename, JSON.stringify(payload, null, 2), 'application/json');
   notification('success', `Exported ${patches.length} patch(es)`);
 }
 
@@ -538,11 +577,15 @@ function readJsonFile(file) {
 
 async function handleImportFileSelected(ev) {
   const file = ev.target.files && ev.target.files[0];
-  if (!file) return;
+
+  if (!file)
+    return;
+
   try {
     const parsed = await readJsonFile(file);
     // expect either an object with { patches: [...] } or a direct array
     let patches = [];
+
     if (Array.isArray(parsed)) {
       patches = parsed;
     } else if (parsed && Array.isArray(parsed.patches)) {
@@ -551,6 +594,7 @@ async function handleImportFileSelected(ev) {
       notification('danger', 'Invalid import file format');
       return;
     }
+
     importBuffer = patches.map(p => ({
       ...p,
       mtime: p.mtime ? new Date(p.mtime).toISOString() : null
@@ -576,6 +620,7 @@ async function doImportPatchesOverwrite() {
     notification('warning', 'No import data');
     return;
   }
+
   let count = 0;
   for (const p of importBuffer) {
     const patch = {
@@ -585,8 +630,9 @@ async function doImportPatchesOverwrite() {
     await addPatch(patch);
     count++;
   }
+
   UIkit.modal('#import-choice-modal').hide();
-  notification('success', `Imported ${count} patches (overwrote existing)`);
+  notification('success', `Imported ${count} patches (overwriting existing)`);
   importBuffer = null;
   await renderPatches();
   await updateDbButtonsState();
@@ -597,14 +643,17 @@ async function doImportPatchesIfNewer() {
     notification('warning', 'No import data');
     return;
   }
+
   const db = await dbPromise;
   let written = 0;
+
   for (const p of importBuffer) {
     const name = p.name;
     if (!name) continue;
     const existing = await db.get(STORE_NAME, name);
     const importedMtime = p.mtime ? new Date(p.mtime).getTime() : null;
     const existingMtime = existing && existing.mtime ? new Date(existing.mtime).getTime() : null;
+
     if (!existing || (importedMtime && (!existingMtime || importedMtime > existingMtime))) {
       const patch = {
         ...p,
@@ -614,6 +663,7 @@ async function doImportPatchesIfNewer() {
       written++;
     }
   }
+
   UIkit.modal('#import-choice-modal').hide();
   notification('success', `Imported ${written} patch(es) (only newer)`);
   importBuffer = null;
@@ -790,40 +840,52 @@ function sendPatch(patch, output) {
     const bytes = base64ToUint8Array(patch.data);
     // WebMIDI .send accepts an array or Uint8Array
     output.send(Array.from(bytes));
-    notification('success', `<div uk-alert class="uk-alert-success">Sent ${bytes.length} bytes to ${output.name || output.id}</div>`);
+    notification('success', `Sent ${bytes.length} bytes to ${output.name || output.id}`);
   } catch (err) {
     console.error('MIDI send failed', err);
     notification('danger', 'Failed to send patch via MIDI');
   }
 }
 
-async function handlePatchImageClick(patch) {
-  if (!patch || !patch.data) {
-    notification('warning', 'No patch data to send');
-    return;
-  }
-  if (!midiAccess) {
-    notification('warning', 'MIDI not initialized');
-    return;
-  }
-  if (!selectedMidiOutputId) {
-    notification('warning', 'No MIDI output selected');
-    return;
-  }
-  const output = midiOutputs.get(selectedMidiOutputId);
-  if (!output) {
-    notification('warning', 'Selected MIDI output not found');
-    return;
-  }
+async function handleSendPatch(ev) {
+  ev.preventDefault();
+  let card = ev.target.closest('.patch-card');
 
-  if (midiConfirmRequired) {
-    UIkit.modal.confirm(`Send patch "${patch.name}" to MIDI device "${output.name || output.id}"?`).then(function() {
+  if (!card)
+    return;
+
+  if (card.dataset.patchName) {
+    const db = await dbPromise;
+    const patch = await db.get(STORE_NAME, card.dataset.patchName);
+
+    if (!patch || !patch.data) {
+      notification('warning', 'No patch data to send');
+      return;
+    }
+    if (!midiAccess) {
+      notification('warning', 'MIDI not initialized');
+      return;
+    }
+    if (!selectedMidiOutputId) {
+      notification('warning', 'No MIDI output selected');
+      return;
+    }
+    const output = midiOutputs.get(selectedMidiOutputId);
+    if (!output) {
+      notification('warning', 'Selected MIDI output not found');
+      return;
+    }
+
+    if (midiConfirmRequired) {
+      UIkit.modal.confirm(`Send patch "${patch.name}" to MIDI device "${output.name || output.id}"?`).then(
+        () => {
+          sendPatch(patch, output);
+        },
+        (err) => {}
+        );
+    } else {
       sendPatch(patch, output);
-    },
-    () => {
-    });
-  } else {
-    sendPatch(patch, output);
+    }
   }
 }
 
