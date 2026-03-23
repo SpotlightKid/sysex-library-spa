@@ -904,7 +904,6 @@ function setupFilter() {
 
   if (!input) return;
   let timeout = null;
-
   input.addEventListener('input', (ev) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => {
@@ -925,6 +924,8 @@ function setupFilter() {
       renderPatches();
     });
   }
+
+  input.focus();
 }
 
 function setupDbAndImportUI() {
