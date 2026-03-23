@@ -962,7 +962,17 @@ async function main() {
   await renderPatches();
   await updateDbButtonsState();
 
-  console.log('App fully loaded');
+  console.log('App fully loaded.');
+
+  // Register service worker (if supported)
+  if ('serviceWorker' in navigator) {
+    console.log('Registering service worker...');
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      console.log('Service worker registered:', reg);
+    }).catch(err => {
+      console.warn('Service worker registration failed:', err);
+    });
+  }
 }
 
 // start app on DOMContentLoaded
