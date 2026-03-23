@@ -775,6 +775,9 @@ async function initWebMIDI() {
   try {
     midiAccess = await navigator.requestMIDIAccess({ sysex: true });
     selectedMidiOutputId = window.localStorage?.getItem("midiOutputId") || '';
+    const confirmStored = window.localStorage?.getItem("midiConfirmRequired");
+    // Default for midiConfirmRequired, if not set in localStorage, is true.
+    midiConfirmRequired = confirmStored ? confirmStored === 'true' : true;
     populateMidiOutputs();
     midiAccess.onstatechange = () => {
       populateMidiOutputs();
@@ -825,12 +828,15 @@ function setupMidiUI() {
       window.localStorage?.setItem("midiOutputId", selectedMidiOutputId);
     });
   }
+
   const chk = document.getElementById('midiConfirmCheckbox');
   if (chk) {
+    chk.checked = midiConfirmRequired;
+
     chk.addEventListener('change', (ev) => {
       midiConfirmRequired = chk.checked;
+      window.localStorage?.setItem("midiConfirmRequired", midiConfirmRequired);
     });
-    midiConfirmRequired = chk.checked;
   }
 }
 
