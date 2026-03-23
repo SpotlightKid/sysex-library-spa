@@ -59,10 +59,11 @@ main.uk-section {
   }
 }
 
-/* Card styling applied to the root card element (template root will receive this class in JS) */
+/* Card styling applied to the root card element
+   (template root element will receive this class in JS) */
 .uk-card.patch-card {
   background: white;
-  border-radius: 6px;
+  border-radius: 0.4rem;
   box-shadow: 0 1px 2px rgba(0,0,0,0.06);
   padding: 0;
   display: flex;
@@ -72,6 +73,7 @@ main.uk-section {
 /* Card header/title */
 .uk-card.patch-card .uk-card-header {
   padding: 0.75rem;
+  border-radius: 0.4rem 0.4rem 0 0;
 }
 .uk-card.patch-card .uk-card-body {
   padding: 0.75rem;
@@ -83,9 +85,10 @@ main.uk-section {
 /* Title */
 .uk-card.patch-card h3 {
   margin: 0 0 0.2rem 0;
-  font-size: 1.05rem;
+  font-size: 1.2rem;
   line-height: 1.2;
   word-break: break-word;
+  color: #fff;
 }
 
 /* small meta text */
