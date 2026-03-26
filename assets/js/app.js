@@ -53,32 +53,37 @@ async function initDB() {
   return dbPromise;
 }
 
-async function addPatch(patch) {
-  const db = await dbPromise;
-  await db.put(STORE_NAME, patch);
+export async function addPatch(patch) {
+  return (await dbPromise).put(STORE_NAME, patch);
 }
 
-async function deletePatch(name) {
-  const db = await dbPromise;
-  await db.delete(STORE_NAME, name);
+export async function deletePatch(name) {
+  return (await dbPromise).delete(STORE_NAME, name);
 }
 
-async function clearAllPatches() {
-  const db = await dbPromise;
-  await db.clear(STORE_NAME);
+export async function clearAllPatches() {
+  await (await dbPromise).clear(STORE_NAME);
 }
 
-async function countPatches() {
-  const db = await dbPromise;
-  return await db.count(STORE_NAME);
+export async function countPatches() {
+  return (await dbPromise).count(STORE_NAME);
 }
 
-async function getAllPatches() {
-  const db = await dbPromise;
-  const all = await db.getAll(STORE_NAME);
+export async function getAllPatches() {
+  const all = await (await dbPromise).getAll(STORE_NAME);
   // sort ascending by name
   all.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
   return all;
+}
+
+export async function getUniqueIndexKeys(index) {
+  let cursor = await (await dbPromise).transaction(STORE_NAME).store.index(index).openCursor();
+  let keys = new Set();
+  while (cursor) {
+    keys.add(cursor.key);
+    cursor = await cursor.continue();
+  }
+  return keys;
 }
 
 function arrayBufferToBase64(buffer) {
@@ -108,7 +113,7 @@ function sanitizeFilename(name) {
 
 function parseTags(tagsString) {
   if (!tagsString) return [];
-  return tagsString.split(',').map(t => t.trim()).filter(t => t.length > 0);
+  return new Set(tagsString.split(',').map(t => t.trim()).filter(t => t.length > 0));
 }
 
 /* Validation rules:
@@ -196,19 +201,17 @@ async function handleUpload(event) {
     const buffer = await file.arrayBuffer();
     const base64 = arrayBufferToBase64(buffer);
 
-    const patch = {
+    operations.push(addPatch({
       name,
+      author,
       manufacturer,
       device,
+      description,
+      tags: Array.from(tags),
+      mtime: new Date(),
       filename: file.name,
       data: base64,
-      author,
-      description,
-      tags,
-      mtime: new Date()
-    };
-
-    operations.push(addPatch(patch));
+    }));
   }
 
   if (operations.length === 0) {
@@ -224,20 +227,7 @@ async function handleUpload(event) {
   // refresh list and update DB button states
   await renderPatches();
   await updateDbButtonsState();
-}
-
-function escapeHtml(str) {
-  if (!str) return '';
-  return str.replace(/[&<>"'`]/g, s => {
-    return ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;',
-      '`': '&#96;'
-    })[s];
-  });
+  await populateDatalists();
 }
 
 function handleTagClicked(ev) {
@@ -329,6 +319,7 @@ async function handleDeletePatch(ev) {
         notification('success', `Deleted patch "${name}"`);
         await renderPatches();
         await updateDbButtonsState();
+        await populateDatalists();
       },
       (err) => {}
     );
@@ -486,37 +477,39 @@ async function handleEditSubmit(ev) {
     UIkit.modal('#edit-modal').hide();
     return;
   }
+  const original_tags = new Set(original.tags)
 
-  const updated = {
-    name,
-    manufacturer,
-    device,
-    filename: original.filename,
-    data: original.data,
-    author,
-    description,
-    tags,
-    mtime: new Date()
-  };
+  if (name == original.name &&
+      author == original.author &&
+      manufacturer == original.manufacturer &&
+      device == original.device &&
+      description == original.description &&
+      tags.symmetricDifference(original_tags).size == 0
+  ) {
+    notification('success', 'Patch not modified');
+  } else {
+    await addPatch({
+      name,
+      author,
+      manufacturer,
+      device,
+      description,
+      tags: Array.from(tags),
+      mtime: new Date(),
+      filename: original.filename,
+      data: original.data,
+    });
 
-  await addPatch(updated);
-  // if name changed and different from original, delete original key
-  if (name !== currentEditOriginalName) {
-    await deletePatch(currentEditOriginalName);
+    // if name changed and different from original, delete original key
+    if (name !== currentEditOriginalName) {
+      await deletePatch(currentEditOriginalName);
+    }
+    notification('success', 'Patch updated');
+    await renderPatches();
+    await updateDbButtonsState();
+    await populateDatalists();
   }
-
-  notification('success', 'Patch updated');
   UIkit.modal('#edit-modal').hide();
-  await renderPatches();
-  await updateDbButtonsState();
-}
-
-/* Export/import/clear functions */
-function serializePatches(patches) {
-  return patches.map(p => ({
-    ...p,
-    mtime: p.mtime ? new Date(p.mtime).toISOString() : null
-  }));
 }
 
 function sendBlob(filename, content, content_type) {
@@ -542,7 +535,7 @@ async function doExportPatches(filteredOnly = false) {
   const payload = {
     exported_at: new Date().toISOString(),
     count: patches.length,
-    patches: serializePatches(patches)
+    patches: patches
   };
   const filename = `patches-${new Date().toISOString().slice(0,19).replace(/[:T]/g, '-')}.json`;
   sendBlob(filename, JSON.stringify(payload, null, 2), 'application/json');
@@ -584,6 +577,7 @@ async function handleImportFileSelected(ev) {
   try {
     const parsed = await readJsonFile(file);
     // expect either an object with { patches: [...] } or a direct array
+    // or a single patch
     let patches = [];
 
     if (Array.isArray(parsed)) {
@@ -597,15 +591,19 @@ async function handleImportFileSelected(ev) {
       return;
     }
 
-    importBuffer = patches.map(p => ({
-      ...p,
-      mtime: p.mtime ? new Date(p.mtime).toISOString() : null
-    }));
+    importBuffer = patches.map((patch) => {
+      const tags = new Set(patch.tags);
+      return {
+        ...patch,
+        mtime: patch.mtime ? new Date(patch.mtime) : null,
+        tags: Array.from(tags)
+      }
+    });
 
     // Check if DB currently empty -> import all without asking
     const total = await countPatches();
     if (total === 0) {
-      await doImportPatchesOverwrite();
+      await doImportPatches();
       return;
     }
 
@@ -617,60 +615,43 @@ async function handleImportFileSelected(ev) {
   }
 }
 
-async function doImportPatchesOverwrite() {
-  if (!importBuffer) {
-    notification('warning', 'No import data');
-    return;
-  }
-
-  let count = 0;
-  for (const p of importBuffer) {
-    const patch = {
-      ...p,
-      mtime: p.mtime ? new Date(p.mtime) : null
-    };
-    await addPatch(patch);
-    count++;
-  }
-
-  UIkit.modal('#import-choice-modal').hide();
-  notification('success', `Imported ${count} patches (overwriting existing)`);
-  importBuffer = null;
-  await renderPatches();
-  await updateDbButtonsState();
-}
-
-async function doImportPatchesIfNewer() {
+async function doImportPatches(ifNewer=false) {
   if (!importBuffer) {
     notification('warning', 'No import data');
     return;
   }
 
   const db = await dbPromise;
-  let written = 0;
+  let count = 0, skipped = 0;
 
-  for (const p of importBuffer) {
-    const name = p.name;
-    if (!name) continue;
-    const existing = await db.get(STORE_NAME, name);
-    const importedMtime = p.mtime ? new Date(p.mtime).getTime() : null;
-    const existingMtime = existing && existing.mtime ? new Date(existing.mtime).getTime() : null;
 
-    if (!existing || (importedMtime && (!existingMtime || importedMtime > existingMtime))) {
-      const patch = {
-        ...p,
-        mtime: p.mtime ? new Date(p.mtime) : null
-      };
-      await addPatch(patch);
-      written++;
+  for (const patch of importBuffer) {
+    if (!patch.name)
+      continue;
+
+    let doImport = true;
+
+    if (ifNewer) {
+      const existing = await db.get(STORE_NAME, patch.name);
+
+      if (existing && existing.mtime >= patch.mtime) {
+        doImport = false;
+        skipped++
+      }
+    }
+
+    if (doImport) {
+      await db.put(STORE_NAME, patch);
+      count++;
     }
   }
 
   UIkit.modal('#import-choice-modal').hide();
-  notification('success', `Imported ${written} patch(es) (only newer)`);
+  notification('success', `Imported ${count} patches` + (skipped ? `, ${skipped} skipped` : ''));
   importBuffer = null;
   await renderPatches();
   await updateDbButtonsState();
+  await populateDatalists();
 }
 
 /* Clear all patches with confirmation */
@@ -728,12 +709,12 @@ function setupDbButtons() {
   const importNewerBtn = document.getElementById('importNewerBtn');
   if (importOverwriteBtn) {
     importOverwriteBtn.addEventListener('click', async () => {
-      await doImportPatchesOverwrite();
+      await doImportPatches();
     });
   }
   if (importNewerBtn) {
     importNewerBtn.addEventListener('click', async () => {
-      await doImportPatchesIfNewer();
+      await doImportPatches(true);
     });
   }
 
@@ -897,8 +878,45 @@ async function handleSendPatch(ev) {
   }
 }
 
+async function populateDatalists() {
+  for (const index of ['author', 'device', 'manufacturer', 'tags']) {
+    const datalist = document.getElementById(`${index}-data`);
+
+    if (datalist) {
+      datalist.textContent = '';
+
+      for (const key of await getUniqueIndexKeys(index)) {
+        const option = document.createElement('option');
+        option.value = key;
+        datalist.appendChild(option);
+      }
+    }
+  }
+}
+
 /* Initialization and main */
+async function setupUploadForm() {
+  // wire up form
+  const uploadForm = document.getElementById('uploadForm');
+
+  if (uploadForm) {
+    uploadForm.addEventListener('submit', handleUpload);
+
+    populateDatalists();
+  }
+}
+
+function setupEditForm() {
+  // edit modal submit handler
+  const editForm = document.getElementById('editForm');
+
+  if (editForm) {
+    editForm.addEventListener('submit', handleEditSubmit);
+  }
+}
+
 function setupFilter() {
+  // filter/search
   const input = document.getElementById('filterInput');
   const form = document.getElementById('filterForm');
 
@@ -940,17 +958,9 @@ function setupDbAndImportUI() {
 async function main() {
   await initDB();
 
-  // wire up form
-  const uploadForm = document.getElementById('uploadForm');
-  if (uploadForm) uploadForm.addEventListener('submit', handleUpload);
-
-  // edit modal submit handler
-  const editForm = document.getElementById('editForm');
-  if (editForm) editForm.addEventListener('submit', handleEditSubmit);
-
-  // filter/search
+  await setupUploadForm();
+  setupEditForm();
   setupFilter();
-
   // DB import/export/clear
   setupDbAndImportUI();
 

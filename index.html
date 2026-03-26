@@ -92,19 +92,22 @@
                 <div class="uk-width-1-1">
                   <label class="uk-form-label" for="author">Author</label>
                   <input id="author" name="author" class="uk-input" type="text"
-                    placeholder="Optional" maxlength="25" />
+                    list="author-data" placeholder="Optional" maxlength="25" />
+                  <datalist id="author-data"></datalist>
                 </div>
 
                 <div class="uk-width-1-1">
                   <label class="uk-form-label" for="manufacturer">Manufacturer</label>
                   <input id="manufacturer" name="manufacturer" class="uk-input" type="text"
-                    placeholder="Optional" maxlength="25" />
+                    list="manufacturer-data" placeholder="Optional" maxlength="25" />
+                  <datalist id="manufacturer-data"></datalist>
                 </div>
 
                 <div class="uk-width-1-1">
                   <label class="uk-form-label" for="device">Device</label>
                   <input id="device" name="device" class="uk-input" type="text"
-                    placeholder="Required" required maxlength="25" />
+                    list="device-data" placeholder="Required" required maxlength="25" />
+                  <datalist id="device-data"></datalist>
                 </div>
 
                 <div class="uk-width-1-1">
@@ -116,7 +119,8 @@
                 <div class="uk-width-1-1">
                   <label class="uk-form-label" for="tags">Tags (comma-separated)</label>
                   <input id="tags" name="tags" class="uk-input" type="text"
-                    placeholder="e.g. bass, lead, arpeggio" />
+                    list="tags-data" placeholder="e.g. bass, lead, arpeggio" />
+                  <datalist id="tags-data"></datalist>
                 </div>
 
                 <div class="uk-width-1-1">
@@ -264,21 +268,24 @@
         <div class="uk-margin">
           <label class="uk-form-label" for="editAuthor">Author</label>
           <div class="uk-form-controls">
-            <input id="editAuthor" class="uk-input" type="text" maxlength="25" />
+            <input id="editAuthor" class="uk-input" type="text" list="author-data"
+              maxlength="25" />
           </div>
         </div>
 
         <div class="uk-margin">
           <label class="uk-form-label" for="editManufacturer">Manufacturer</label>
           <div class="uk-form-controls">
-            <input id="editManufacturer" class="uk-input" type="text" maxlength="25" />
+            <input id="editManufacturer" class="uk-input" type="text" list="manufacturer-data"
+              maxlength="25" />
           </div>
         </div>
 
         <div class="uk-margin">
           <label class="uk-form-label" for="editDevice">Device</label>
           <div class="uk-form-controls">
-            <input id="editDevice" class="uk-input" type="text" maxlength="25" required />
+            <input id="editDevice" class="uk-input" type="text" list="device-data"
+              maxlength="25" required placeholder="Required" />
           </div>
         </div>
 
@@ -292,7 +299,7 @@
         <div class="uk-margin">
           <label class="uk-form-label" for="editTags">Tags (comma-separated)</label>
           <div class="uk-form-controls">
-            <input id="editTags" class="uk-input" type="text" />
+            <input id="editTags" class="uk-input" type="text" list="tags-data" />
           </div>
         </div>
 
